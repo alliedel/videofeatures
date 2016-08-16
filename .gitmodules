@@ -1,0 +1,6 @@
+[submodule "code/src/externaltools/vlfeat"]
+	path = code/src/externaltools/vlfeat
+	url = git://github.com/vlfeat/vlfeat.git
+[submodule "code/src/externaltools/my_tools"]
+	path = code/src/externaltools/my_tools
+	url = git://github.com/alliedel/my_tools.git
