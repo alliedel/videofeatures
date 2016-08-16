@@ -1,0 +1,92 @@
+#include "DenseTrack.h"
+#include "Initialize.h"
+#include "Descriptors.h"
+#include "OpticalFlow.h"
+
+#include <time.h>
+
+using namespace cv;
+
+int show_track = 1; // set show_track = 1, if you want to visualize the trajectories
+
+int main(int argc, char** argv)
+{
+
+	while(true) {
+
+		// get a new frame
+		capture >> frame;
+
+		if(frame_num < start_frame || frame_num > end_frame) {
+			frame_num++;
+			continue;
+		}
+
+		// compute optical flow for all scales once
+		my::FarnebackPolyExpPyr(grey, poly_pyr, fscales, 7, 1.5);
+		my::calcOpticalFlowFarneback(prev_poly_pyr, poly_pyr, flow_pyr, 10, 2);
+
+		for(int iScale = 0; iScale < scale_num; iScale++) {
+			if(iScale == 0)
+				grey.copyTo(grey_pyr[0]);
+			else
+				resize(grey_pyr[iScale-1], grey_pyr[iScale], grey_pyr[iScale].size(), 0, 0, INTER_LINEAR);
+
+			int width = grey_pyr[iScale].cols;
+			int height = grey_pyr[iScale].rows;
+
+			// track feature points in each scale separately
+			std::list<Track>& tracks = xyScaleTracks[iScale];
+			for (std::list<Track>::iterator iTrack = tracks.begin(); iTrack != tracks.end();) {
+			  int index = iTrack->index;
+			  Point2f prev_point = iTrack->point[index];
+			  int x = std::min<int>(std::max<int>(cvRound(prev_point.x), 0), width-1);
+			  int y = std::min<int>(std::max<int>(cvRound(prev_point.y), 0), height-1);
+
+			  Point2f point;
+			  point.x = prev_point.x + flow_pyr[iScale].ptr<float>(y)[2*x];
+			  point.y = prev_point.y + flow_pyr[iScale].ptr<float>(y)[2*x+1];
+			  
+			  if(point.x <= 0 || point.x >= width || point.y <= 0 || point.y >= height) {
+			    iTrack = tracks.erase(iTrack);
+			    continue;
+			  }
+
+			  if(show_track == 1 && iScale == 0)
+			    DrawTrack(iTrack->point, iTrack->index, fscales[iScale], image);
+			} %iTrack
+			// detect new feature points every initGap frames
+			std::vector<Point2f> points(0);
+			for(std::list<Track>::iterator iTrack = tracks.begin(); iTrack != tracks.end(); iTrack++)
+				points.push_back(iTrack->point[iTrack->index]);
+
+			DenseSample(grey_pyr[iScale], points, quality, min_distance);
+			// save the new feature points
+			for(i = 0; i < points.size(); i++)
+				tracks.push_back(Track(points[i], trackInfo, hogInfo, hofInfo, mbhInfo));
+		} %iScale
+
+		init_counter = 0;
+		grey.copyTo(prev_grey);
+		for(i = 0; i < scale_num; i++) {
+			grey_pyr[i].copyTo(prev_grey_pyr[i]);
+			poly_pyr[i].copyTo(prev_poly_pyr[i]);
+		}
+		
+
+		sprintf(imname,"%s/%06d.jpg",imgFolder,frame_num);
+		imwrite(imname,image);
+		frame_num++;
+
+		if( show_track == 1 ) {
+			imshow( "DenseTrack", image);
+			c = cvWaitKey(3);
+			if((char)c == 27) break;
+		}
+	} % frameNum
+
+	if( show_track == 1 )
+		destroyWindow("DenseTrack");
+
+	return 0;
+}

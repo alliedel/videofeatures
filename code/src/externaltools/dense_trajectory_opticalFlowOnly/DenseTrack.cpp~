@@ -1,0 +1,98 @@
+#include "DenseTrack.h"
+#include "Initialize.h"
+#include "Descriptors.h"
+#include "OpticalFlow.h"
+
+#include <time.h>
+
+using namespace cv;
+using namespace std;
+
+int show_track = 0; // set show_track = 1, if you want to visualize the trajectories
+
+
+static void drawOptFlowMap(const Mat& flow, Mat& cflowmap, int step,
+			   double, const Scalar& color)
+{
+  for(int y = 0; y < cflowmap.rows; y += step)
+    for(int x = 0; x < cflowmap.cols; x += step)
+      {
+	const Point2f& fxy = flow.at<Point2f>(y, x);
+	line(cflowmap, Point(x,y), Point(cvRound(x+fxy.x), cvRound(y+fxy.y)),
+	     color);
+	circle(cflowmap, Point(x,y), 2, color, -1);
+      }
+}
+
+int main(int argc, char** argv)
+{
+	VideoCapture capture;
+	char *video = argv[1];
+	// Specify outfile to write features to
+	char *outFname = argv[2];
+	char *imgFolder = argv[3];
+        char imname[100];
+	hOutFile.open(outFname,std::ios::out | std::ios::app | std::ios::binary);
+	  if(0){
+	  fprintf(stderr, "out file could not be opened\n");
+	  std::cout << "Fname: " << outFname;
+	return -1;
+	}
+
+	int flag = arg_parse(argc, argv);
+	capture.open(video);
+
+	if(!capture.isOpened()) {
+		fprintf(stderr, "Could not initialize capturing..\n");
+		return -1;
+	}
+
+	int frame_num = 0;
+
+	if(show_track == 1)
+		namedWindow("DenseTrack", 0);
+
+	Mat image;
+	Mat flow, cflow, frame;
+	cv::UMat gray, prevgray, uflow;
+	namedWindow("flow", 1);
+
+	while(true) {
+		Mat frame;
+		int i, c;//, j;
+
+		// get a new frame
+		capture >> frame;        
+		if(frame.empty())
+			break;
+
+		if(frame_num < start_frame || frame_num > end_frame) {
+			frame_num++;
+			continue;
+		}
+
+		cvtColor(frame, gray, COLOR_BGR2GRAY);
+
+		if( !prevgray.empty() )
+		  {
+		    calcOpticalFlowFarneback(prevgray, gray, uflow, 0.5, 3, 15, 3, 5, 1.2, 0);
+		    cvtColor(prevgray, cflow, COLOR_GRAY2BGR);
+		    uflow.copyTo(flow);
+		    drawOptFlowMap(flow, cflow, 16, 1.5, Scalar(0, 255, 0));
+		    imshow("flow", cflow);
+		    sprintf(imname,"%s/%06d.jpg",imgFolder,frame_num);
+		    imwrite(imname,image);
+}
+		std::swap(prevgray, gray);
+		
+		frame_num++;
+
+		if( show_track == 1 ) {
+			imshow( "DenseTrack", image);
+			c = cvWaitKey(3);
+			if((char)c == 27) break;
+		}
+	}
+
+	return 0;
+}

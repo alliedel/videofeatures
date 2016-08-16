@@ -1,0 +1,6 @@
+DenseTrack.o
+DenseTrack.d
+Video.d
+release/Video
+release/DenseTrack
+!.gitignore

@@ -1,0 +1,9 @@
+The feature format is as follows:
+
+Each row:
+[framenum meanx meany varx vary length scale xpos ypos tpos ...
+2x[trajectory length=15] = length 30 descriptor ... % Trajectory
+8x[spatial cells=2]x[spatial cells=2]x[temporal cells=3] ... % HoG (96)
+9x[spatial cells=2]x[spatial cells=2]x[temporal cells=3] ... % HoF (108)
+8x[spatial cells=2]x[spatial cells=2]x[temporal cells=3] ... % MBHx (96)
+8x[spatial cells=2]x[spatial cells=2]x[temporal cells=3] ... % MBHy (96)
